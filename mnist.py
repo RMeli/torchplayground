@@ -78,7 +78,7 @@ plt.tight_layout()
 plt.show()
 
 # Define the model
-model = mlp.MLP((28*28, 512, 512, 10), 0.25)
+model = mlp.MLP((28 * 28, 512, 512, 10), 0.25)
 
 # Set optimizer and bind to model
 optimizer = optim.SGD(model.parameters(), lr=0.01)
@@ -86,12 +86,14 @@ optimizer = optim.SGD(model.parameters(), lr=0.01)
 # Train model
 epochs = 10
 model_name = "mlp_mnist.pt"
-loss = nn.CrossEntropyLoss()
+loss = nn.NLLLoss()
 if os.path.isfile(model_name):
     # Load the model
     model.load_state_dict(torch.load(model_name))
 else:
-    train_loss, validation_loss = train(epochs, model, loss, optimizer, train_loader, validation_loader, model_name)
+    train_loss, validation_loss = train(
+        epochs, model, loss, optimizer, train_loader, validation_loader, model_name
+    )
 
     # Show train and validation losses
     fig = plt.figure()
@@ -140,10 +142,10 @@ for idx in range(batch_size):
     n = np.rint(np.sqrt(batch_size))
     ax = fig.add_subplot(n, n, idx + 1, xticks=[], yticks=[])
     plt.imshow((images[idx][0] + 0.5) * 0.5)  # Un-normalise
-    ax.set_title(f"{preds[idx].item()} ({labels[idx].item()})", fontdict={"fontsize": 6}, color=("green" if preds[idx]==labels[idx] else "red"))
+    ax.set_title(
+        f"{preds[idx].item()} ({labels[idx].item()})",
+        fontdict={"fontsize": 6},
+        color=("green" if preds[idx] == labels[idx] else "red"),
+    )
 plt.tight_layout()
 plt.show()
-
-
-
-
