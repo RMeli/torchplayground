@@ -10,7 +10,7 @@ import os
 from matplotlib import pyplot as plt
 
 from models import mlp
-from train import train
+from utils.train import train
 
 # Define data transformation
 transform = transforms.Compose(
@@ -85,7 +85,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 # Train model
 epochs = 10
-model_name = "mlp_mnist.pt"
+model_name = "data/MNIST/mlp_mnist.pt"
 loss = nn.NLLLoss()
 if os.path.isfile(model_name):
     # Load the model
@@ -119,7 +119,7 @@ for data, target in test_loader:
         class_correct[label] += correct[i].item()
         class_total[label] += 1
 test_loss = test_loss / len(test_loader)
-print(f"\nTest Loss: {test_loss:.6f}")
+print(f"Test Loss: {test_loss:.6f}")
 for i in range(10):
     if class_total[i] > 0:
         accuracy = 100 * class_correct[i] / class_total[i]
