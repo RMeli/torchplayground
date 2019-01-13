@@ -11,8 +11,8 @@ def train(
     train_loader,
     validation_loader=None,
     model_name="model.pt",
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 ):
-
     train_loss = []
     validation_loss = []
 
@@ -25,6 +25,9 @@ def train(
         # Model training
         model.train()
         for data, target in train_loader:
+            # Move data to device
+            data, target = data.to(device), target.to(device)
+
             # Initialize gradients
             optimizer.zero_grad()
 
@@ -49,6 +52,9 @@ def train(
 
             with torch.no_grad():  # Avoid computation of gradients
                 for data, target in validation_loader:
+                    # Move data to device
+                    data, target = data.to(device), target.to(device)
+
                     # Model evaluation (forward propagation)
                     prediction = model(data)
 

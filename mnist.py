@@ -12,6 +12,8 @@ from matplotlib import pyplot as plt
 from models import mlp
 from utils.train import train
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Define data transformation
 transform = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
@@ -80,6 +82,9 @@ plt.show()
 # Define the model
 model = mlp.MLP((28 * 28, 512, 512, 10), 0.25)
 
+# Move model to device
+model = model.to(device)
+
 # Set optimizer and bind to model
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
@@ -92,7 +97,14 @@ if os.path.isfile(model_name):
     model.load_state_dict(torch.load(model_name))
 else:
     train_loss, validation_loss = train(
-        epochs, model, loss, optimizer, train_loader, validation_loader, model_name
+        epochs,
+        model,
+        loss,
+        optimizer,
+        train_loader,
+        validation_loader,
+        model_name,
+        device,
     )
 
     # Show train and validation losses
@@ -109,6 +121,7 @@ class_correct = list(range(10))
 class_total = list(range(10))
 model.eval()
 for data, target in test_loader:
+    data, target = data.to(device), target.to(device)
     predicted = model(data)
     l = loss(predicted, target)
     test_loss += l.item() * data.size(0)
@@ -130,6 +143,7 @@ for i in range(10):
         print(f"Test Accuracy of {classes[i]}: N/A")
 
 # Load a batch of test images (and labels) and compute predictions
+model = model.to("cpu")
 test_iterator = iter(test_loader)
 images, labels = test_iterator.next()
 predicted = model(images)
