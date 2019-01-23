@@ -1,11 +1,14 @@
-# Python
+# python
 __pycache__
 
 # pytorch
 *.pt
 
-# Data
+# data
 data/
+
+# editors
+*~
 
 # macOS
 .DS_Store
