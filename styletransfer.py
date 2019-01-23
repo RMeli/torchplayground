@@ -16,14 +16,14 @@ style_img = load_image("data/images/hockney.jpg", shape=img.shape[2:]).to(device
 fig, ax = plt.subplots(1, 2)
 ax[0].imshow(tensor_to_image(img))
 ax[1].imshow(tensor_to_image(style_img))
-plt.show()
+plt.savefig("data/images/content+style.png")
 
 # Define style transfer object
-st = style.StyleTransfer(img, style_img)
+st = style.StyleTransfer(img, style_img, device=device)
 
 # Perform style transfer
-target, targets = st.run(50, 500)
+target, targets = st.run(2500, 500)
 
+plt.figure()
 plt.imshow(tensor_to_image(target))
 plt.savefig("data/images/style_transfer.png")
-plt.show()
