@@ -2,10 +2,13 @@
 Implementation of style transfer using PyTorch
 
 Sources:
-    * Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
+    Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
     Image Style Transfer Using Convolutional Neural Networks
+    https://arxiv.org/abs/1508.06576
     
-    * Intro to Deep Learning with Pytorch, Udacity Course
+    Intro to Deep Learning with Pytorch
+    Udacity Course
+    https://www.udacity.com/course/deep-learning-pytorch--ud188
 """
 
 import torch

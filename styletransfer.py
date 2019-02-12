@@ -17,7 +17,7 @@ style_img = load_image("data/images/" + style_name + ".jpg", shape=img.shape[2:]
 st = style.StyleTransfer(img, style_img, device=device)
 
 # Perform style transfer
-target = st.run(2)
+target = st.run(2500)
 
 plt.figure()
 plt.imshow(tensor_to_image(target))
