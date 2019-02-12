@@ -1,59 +1,80 @@
+"""
+Implementation of style transfer using PyTorch
+
+Sources:
+    * Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
+    Image Style Transfer Using Convolutional Neural Networks
+    
+    * Intro to Deep Learning with Pytorch, Udacity Course
+"""
+
 import torch
 import torch.optim as optim
 
 import torchvision
 from torchvision import transforms
 
+from typing import Dict
+
 
 class StyleTransfer:
     """
-    Style transfer.
-
-    Source:
-        Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
-        Image Style Transfer Using Convolutional Neural Networks
+    Style transfer class
     """
 
     def __init__(
         self,
-        content,
-        style,
-        content_weight=1,
-        style_weight=1e6,
-        style_weights={
-            "conv1_1": 1.0,
-            "conv2_1": 0.75,
-            "conv3_1": 0.2,
-            "conv4_1": 0.2,
-            "conv5_1": 0.2,
-        },
+        content: torch.tensor,  # Content image
+        style: torch.tensor,  # Stile image
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    ):
+    ) -> None:
+        """
+        Style transfer __init__
+
+        Inputs
+        ------
+        self : StyleTransfer
+        content : torch.tensor
+           Content image (and initial guess)
+        style : torch.tensor
+            Style image
+        device : torch.device
+            Computation device (CPU or GPU)
+
+        Notes
+        -----
+        Using a GPU us highly recommended, since the code is very slow on a CPU.
+        """
         self.content = content
         self.style = style
-        self.content_weight = content_weight  # alpha
-        self.style_weight = style_weight  # beta
-        self.style_weights = style_weights
         self.device = device
 
+        # Load/get VGG19 CNN
         self.vgg = self._load_vgg19()
-        
+
         # Get content and style features
         self.content_features = self._get_features(self.content)
         self.style_features = self._get_features(self.style)
 
         # Compute Gram matrix for each layer of the style features
-        self.style_grams = {layer: self._gram_matrix(self.style_features[layer]) for layer in self.style_features}
+        self.style_grams = {
+            layer: self._gram_matrix(self.style_features[layer])
+            for layer in self.style_features
+        }
 
-        # Create target image
-        # The target is initialized as content (and iteratively modified to change the style)
-        self.target = self.content.clone()
-        self.target.requires_grad_(True) # Activate gradients calculation
-        self.target = self.target.to(device) # Move to device
-
-    def _load_vgg19(self):
+    def _load_vgg19(self) -> torch.nn:
         """
-        Load VGG19 neural network.
+        Load VGG19 neural network
+
+        Returns
+        -------
+        vgg : torch.model
+            VGG19 convolutional layers (pre-trained)
+
+        Notes
+        -----
+        VGG19 is a pre-trained CNN downloaded from torchvision.
+        Downloading the model can take some time and requires internet connection.
         """
 
         # Load convolutional ("features") layers of VGG19
@@ -64,16 +85,90 @@ class StyleTransfer:
         for p in vgg.parameters():
             p.requires_grad_(False)
 
+        # Move the model to the correct device
         return vgg.to(self.device)
 
-    def _get_features(self, image):
-        # VGG19 layers from Gatys et al (2016)
+    def _get_features(self, image: torch.tensor) -> Dict[str, torch.tensor]:
+        """
+        Get selected features layers from VGG19 for a specific image passed
+        through the network.
+
+        Inputs
+        ------
+        image : torch.tensor
+            Current image, to be propagated through the network
+        
+        Returns
+        -------
+        features : Dict[torch.tensor]
+            Features of the input images for specific convolutional layers
+            (both for style and content)
+
+        Notes
+        -----
+        The features (convolutional layers) are selected according to Gatys et al. (2016).
+
+        VGG19 structure in PyTorch:
+            VGG(
+                (features): Sequential(
+                    (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (1): ReLU(inplace)
+                    (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (3): ReLU(inplace)
+                    (4): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+                    (5): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (6): ReLU(inplace)
+                    (7): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (8): ReLU(inplace)
+                    (9): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+                    (10): Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (11): ReLU(inplace)
+                    (12): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (13): ReLU(inplace)
+                    (14): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (15): ReLU(inplace)
+                    (16): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (17): ReLU(inplace)
+                    (18): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+                    (19): Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (20): ReLU(inplace)
+                    (21): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (22): ReLU(inplace)
+                    (23): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (24): ReLU(inplace)
+                    (25): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (26): ReLU(inplace)
+                    (27): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+                    (28): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (29): ReLU(inplace)
+                    (30): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (31): ReLU(inplace)
+                    (32): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (33): ReLU(inplace)
+                    (34): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    (35): ReLU(inplace)
+                    (36): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+                )
+                (classifier): Sequential(
+                    (0): Linear(in_features=25088, out_features=4096, bias=True)
+                    (1): ReLU(inplace)
+                    (2): Dropout(p=0.5)
+                    (3): Linear(in_features=4096, out_features=4096, bias=True)
+                    (4): ReLU(inplace)
+                    (5): Dropout(p=0.5)
+                    (6): Linear(in_features=4096, out_features=1000, bias=True)
+                )
+            )  
+        """
+
+        # VGG19 layers, according to Gatys et al. (2016)
+        # See above for the PyTorch structure
         layers = {
             "0": "conv1_1",
             "5": "conv2_1",
             "10": "conv3_1",
             "19": "conv4_1",
-            "21": "conv4_2",  # Content
+            "21": "conv4_2",  # Content layer
             "28": "conv5_1",
         }
 
@@ -86,14 +181,41 @@ class StyleTransfer:
             # Propagate the image through the network (layer-by-layer)
             x = layer(x)
 
-            if name in layers:
+            # Save current layer if needed
+            if (
+                name in layers
+            ):  # PyTorch ame is the index (key in the dictionary layers)
                 features[layers[name]] = x
 
         return features
 
-    def _gram_matrix(self, tensor):
+    def _gram_matrix(self, tensor: torch.tensor) -> torch.tensor:
         """
-        Compute Gram matrix for given tensor.
+        Compute Gram matrix for a given tensor
+
+        Input
+        -----
+        tensor : torch.tensor
+            Input tensor
+        
+        Returns
+        -------
+        gram : torch.tensor
+            Gram matrix of the input tensor
+
+        Notes
+        -----
+        The Gram matrix of a set of vectors $v_1, \dots, v_n$ is the matrix of inner products
+        whose elements are given by
+        $$
+            G_{ij} = \angle v_i, v_j \rangle.
+        $$
+        If $V$ is the matrix whose columns are the vectors $v_1, \dots, v_n$, we have
+        $$
+            G = V^TV.
+        $$
+
+        The Gram matrix corresponds to Equation 3 in Gatys et al. (2016).
         """
 
         # Get depth (number of channels), height and width of current tensor
@@ -103,51 +225,93 @@ class StyleTransfer:
         # Reshape tensor to matrix
         tensor = tensor.view(d, h * w)
 
+        # Compute Gram matrix
         return torch.mm(tensor, tensor.t())
 
-    def run(self, steps=2500, save_every=500):
+    def run(
+        self,
+        steps: int,
+        content_weight: float = 1,  # Conetnt weight for total loss
+        style_weight: float = 1e6,  # Style weight for total loss
+        style_weights: Dict[str, float] = {
+            "conv1_1": 1.0,
+            "conv2_1": 0.75,
+            "conv3_1": 0.2,
+            "conv4_1": 0.2,
+            "conv5_1": 0.2,
+        },
+        lr: float = 0.002
+    ) -> torch.tensor:
+        """
+        Perform style transfer with the specified parameters
 
-        images = []
+        Input
+        -----
+        steps : int
+            Total number of optimization (transfer) steps
+        content_weight : float
+            Conetnt weight for total loss
+        style_weight : float
+            Style weight for total loss
+        style_weights : Dict[str, float]
+            Style weight for VGG19 layers using in style transfer
+        lr : float
+            Learning rate (for the optimizer)
+        """
+        # Create target image
+        # The target is initialized as content (and iteratively modified to change the style)
+        target = self.content.clone()
+        target.requires_grad_(True)  # Activate gradients calculation
+        target = target.to(self.device)  # Move to device
 
-        optimizer = optim.Adam([self.target], lr=0.002)
+        # Set optimizer
+        # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
+        optimizer = optim.Adam([target], lr=lr)
 
         for i in range(steps):
 
             # Get target features
-            target_features = self._get_features(self.target)
+            # This call performs a forward propagation of the target image
+            target_features = self._get_features(target)
 
-            # Compute content loss 
-            content_loss = torch.mean((target_features["conv4_2"] - self.content_features["conv4_2"])**2)
+            # Compute content loss (conv4_2 is the content layer)
+            # Equation 1 in Gatys et al. (2016)
+            content_loss = torch.mean(
+                (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
+            )
 
             # Compute style loss
             style_loss = 0
-            for layer in self.style_weights:
+            for layer in style_weights:
                 # Get target feature for current layer
                 target_feature = target_features[layer]
 
                 # Compute Gram matrix for target
+                # Matrix G in Equation 4 of Gatys et al. (2016)
                 target_gram = self._gram_matrix(target_feature)
 
                 # Get Gram matrix for style (current layer)
+                # Matrix A in Equation 4 of Gatys et al. (2016)
                 style_gram = self.style_grams[layer]
 
                 # Compute the style loss for current layer
-                layer_style_loss = self.style_weights[layer] * torch.mean((target_gram - style_gram)**2)
+                # Equation 4 in Gatys et al. (2016)
+                _, d, h, w = target_feature.shape
+                layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
+                    d * h * w
+                )
 
                 # Update total style loss
-                _, d, h, w = target_feature.shape
-                style_loss += layer_style_loss / (d * h * w)
+                # Equation 5 in Gatys et al. (2016)
+                style_loss += style_weights[layer] * layer_style_loss
 
             # Total loss
-            loss = self.content_weight * content_loss + self.style_weight * style_loss
+            # Equation 7 in Gatys et al. (2016)
+            loss = content_weight * content_loss + style_weight * style_loss
 
             # Update target
             optimizer.zero_grad()
-            loss.backward() # Backpropagation
+            loss.backward()  # Backpropagation
             optimizer.step()
 
-            if i % save_every == 0:
-                images.append(self.target.clone())
-
-        return self.target.clone().detach(), images
-
+        return target.clone().detach()

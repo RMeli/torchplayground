@@ -37,8 +37,8 @@ def tensor_to_image(tensor):
 
     # Un-normalize
     img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
-    
+
     # Clip for plt.imgshow() (to avoid warning)
     img = img.clip(0, 1)
-    
+
     return img

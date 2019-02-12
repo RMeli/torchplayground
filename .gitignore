@@ -1,5 +1,6 @@
-# python
+# chaches
 __pycache__
+.mypy_cache
 
 # pytorch
 *.pt
@@ -9,6 +10,7 @@ data/
 
 # editors
 *~
+.vscode
 
 # macOS
 .DS_Store
