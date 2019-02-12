@@ -12,9 +12,8 @@ import torch
 import torch.optim as optim
 
 import torchvision
-from torchvision import transforms
 
-from typing import Dict
+from typing import Dict, List, Tuple
 
 
 class StyleTransfer:
@@ -233,13 +232,7 @@ class StyleTransfer:
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
         style_weight: float = 1e6,  # Style weight for total loss
-        style_weights: Dict[str, float] = {
-            "conv1_1": 1.0,
-            "conv2_1": 0.75,
-            "conv3_1": 0.2,
-            "conv4_1": 0.2,
-            "conv5_1": 0.2,
-        },
+        style_layers_weights: List[float] = [0.2] * 5, # Weights for style layers
         lr: float = 0.002
     ) -> torch.tensor:
         """
@@ -253,7 +246,7 @@ class StyleTransfer:
             Conetnt weight for total loss
         style_weight : float
             Style weight for total loss
-        style_weights : Dict[str, float]
+        style_layer_weights : Dict[str, float]
             Style weight for VGG19 layers using in style transfer
         lr : float
             Learning rate (for the optimizer)
@@ -263,6 +256,10 @@ class StyleTransfer:
         target = self.content.clone()
         target.requires_grad_(True)  # Activate gradients calculation
         target = target.to(self.device)  # Move to device
+
+        # Map style layer weights to names
+        style_layer_names = ["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1"]
+        style_weights = { name : weight for name, weight in zip(style_layer_names, style_layers_weights)}
 
         # Set optimizer
         # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
@@ -315,3 +312,116 @@ class StyleTransfer:
             optimizer.step()
 
         return target.clone().detach()
+
+if __name__ == "__main__":
+    import argparse
+    import numpy as np
+    
+    from matplotlib import pyplot as plt
+    from PIL import Image
+
+    from torchvision import transforms
+
+    def get_args():
+        """
+        Parse arguments from command line
+        """
+        parser = argparse.ArgumentParser(description="Neural Style Transfer using PyTorch")
+
+        parser.add_argument("--style", "-s", type=str, required=True)
+        parser.add_argument("--content", "-c", type=str, required=True)
+        parser.add_argument("--output", "-o", type=str, required=True)
+        parser.add_argument("--nsteps", "-n", type=int, required=True)
+        parser.add_argument("--alpha", "-a", type=float, default=1)
+        parser.add_argument("--beta", "-b", type=float, default=1e6)
+        parser.add_argument("--weights", "-w", type=float, nargs=5, default=[0.2]*5)
+        parser.add_argument("--lr", "-l", type=float, default=0.002)
+
+        return parser.parse_args()
+
+    def load_image(img_path : str, shape : Tuple[int]=None) -> torch.tensor:
+        """
+        Transform image to torch.tensor (with normalisation)
+
+        Inputs
+        ------
+        img_path : str
+            Path to image
+        shape : Tuple[int]
+            Image shape (for respahing/resizing)
+
+        Returns
+        -------
+        img : torch.tensor
+            Image as torch.tensor
+        """
+
+        # Load image in RGB format
+        img = Image.open(img_path).convert("RGB")
+
+        # Image transformations
+        normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.2, 0.2, 0.2))
+
+        if shape is None:
+            transform = transforms.Compose([transforms.ToTensor(), normalize])
+        else:
+            transform = transforms.Compose(
+                [transforms.Resize(shape), transforms.ToTensor(), normalize]
+            )
+
+        # Remove alpha channel and add batch dimensions
+        # Shape: (Batch, Channel, X, Y)
+        img = transform(img)[:3, :, :].unsqueeze(0)
+
+        return img
+
+    def tensor_to_image(tensor: torch.tensor) -> np.ndarray:
+        """
+        Transform torch.tensor in RGB image
+
+        Inputs
+        ------
+        tensor : torch.tensor
+            Image as torch.tensor
+
+        Returns
+        -------
+        img : np.ndarray
+            Image as np.array
+        """
+
+        # Move tensor to CPU
+        img = tensor.to("cpu")
+
+        # Transform image into numpy array
+        img = img.numpy().squeeze().transpose(1, 2, 0)
+
+        # Un-normalize
+        img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
+
+        # Clip for plt.imgshow() (to avoid warning)
+        img = img.clip(0, 1)
+
+        return img
+
+    # Select device automatically
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Parse arguments
+    args = get_args()
+
+    # Load content and style images
+    img_content = load_image(args.content).to(device)
+    img_style = load_image(args.style, shape=img_content.shape[2:]).to(device)
+
+    # Setup style transfer
+    st = StyleTransfer(img_content, img_style)
+
+    # Run style transfer
+    img = st.run(args.nsteps, content_weight=args.alpha, style_weight=args.beta, style_layers_weights=args.weights, lr = args.lr )
+
+    # Save output image
+    plt.figure()
+    plt.imshow(tensor_to_image(img))
+    plt.axis('off')
+    plt.savefig(args.output, bbox_inches='tight', pad_inches=0)
