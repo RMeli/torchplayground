@@ -235,8 +235,8 @@ class StyleTransfer:
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
         style_weight: float = 1e6,  # Style weight for total loss
-        style_layers_weights: List[float] = [0.2] * 5, # Weights for style layers
-        lr: float = 0.002
+        style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
+        lr: float = 0.002,
     ) -> torch.tensor:
         """
         Perform style transfer with the specified parameters
@@ -262,7 +262,10 @@ class StyleTransfer:
 
         # Map style layer weights to names
         style_layer_names = ["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1"]
-        style_weights = { name : weight for name, weight in zip(style_layer_names, style_layers_weights)}
+        style_weights = {
+            name: weight
+            for name, weight in zip(style_layer_names, style_layers_weights)
+        }
 
         # Set optimizer
         # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
@@ -316,10 +319,11 @@ class StyleTransfer:
 
         return target.clone().detach()
 
+
 if __name__ == "__main__":
     import argparse
     import numpy as np
-    
+
     from matplotlib import pyplot as plt
     from PIL import Image
 
@@ -329,7 +333,9 @@ if __name__ == "__main__":
         """
         Parse arguments from command line
         """
-        parser = argparse.ArgumentParser(description="Neural Style Transfer using PyTorch")
+        parser = argparse.ArgumentParser(
+            description="Neural Style Transfer using PyTorch"
+        )
 
         parser.add_argument("--style", "-s", type=str, required=True)
         parser.add_argument("--content", "-c", type=str, required=True)
@@ -337,12 +343,12 @@ if __name__ == "__main__":
         parser.add_argument("--nsteps", "-n", type=int, required=True)
         parser.add_argument("--alpha", "-a", type=float, default=1)
         parser.add_argument("--beta", "-b", type=float, default=1e6)
-        parser.add_argument("--weights", "-w", type=float, nargs=5, default=[0.2]*5)
+        parser.add_argument("--weights", "-w", type=float, nargs=5, default=[0.2] * 5)
         parser.add_argument("--lr", "-l", type=float, default=0.002)
 
         return parser.parse_args()
 
-    def load_image(img_path : str, shape : Tuple[int]=None) -> torch.tensor:
+    def load_image(img_path: str, shape: Tuple[int] = None) -> torch.tensor:
         """
         Transform image to torch.tensor (with normalisation)
 
@@ -380,7 +386,7 @@ if __name__ == "__main__":
 
     def tensor_to_image(tensor: torch.tensor) -> np.ndarray:
         """
-        Transform torch.tensor in RGB image
+        Transform torch.tensor to RGB image
 
         Inputs
         ------
@@ -391,6 +397,10 @@ if __name__ == "__main__":
         -------
         img : np.ndarray
             Image as np.array
+
+        Note
+        ----
+        For RGB images, PIL expects a tensor of integers (between 0 and 255) with shape (channels, h, w)
         """
 
         # Move tensor to CPU
@@ -402,8 +412,8 @@ if __name__ == "__main__":
         # Un-normalize
         img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
 
-        # Clip for plt.imgshow() (to avoid warning)
-        img = img.clip(0, 1)
+        # Convert to RGB
+        img = np.array(img * 255, dtype=np.uint8)
 
         return img
 
@@ -421,10 +431,15 @@ if __name__ == "__main__":
     st = StyleTransfer(img_content, img_style)
 
     # Run style transfer
-    img = st.run(args.nsteps, content_weight=args.alpha, style_weight=args.beta, style_layers_weights=args.weights, lr = args.lr )
+    img = st.run(
+        args.nsteps,
+        content_weight=args.alpha,
+        style_weight=args.beta,
+        style_layers_weights=args.weights,
+        lr=args.lr,
+    )
 
     # Save output image
-    plt.figure()
-    plt.imshow(tensor_to_image(img))
-    plt.axis('off')
-    plt.savefig(args.output, bbox_inches='tight', pad_inches=0)
+    print(tensor_to_image(img).shape)
+    output = Image.fromarray(tensor_to_image(img))
+    output.save(args.output)
