@@ -2,7 +2,7 @@ import torch
 
 from matplotlib import pyplot as plt
 
-from models import style
+from models import styletransfer as style
 from utils.images import load_image, tensor_to_image
 
 # Define device
