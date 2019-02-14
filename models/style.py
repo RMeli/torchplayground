@@ -413,7 +413,11 @@ if __name__ == "__main__":
         img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
 
         # Convert to RGB
-        img = np.array(img * 255, dtype=np.uint8)
+        #img = np.array(img * 255, dtype=np.uint8)
+        #img.clip(0, 255)    
+
+        # Clip for plt.imgshow() (to avoid warning)
+        img = img.clip(0, 1)
 
         return img
 
@@ -440,6 +444,9 @@ if __name__ == "__main__":
     )
 
     # Save output image
-    print(tensor_to_image(img).shape)
-    output = Image.fromarray(tensor_to_image(img))
-    output.save(args.output)
+    #output = Image.fromarray(tensor_to_image(img))
+    #output.save(args.output)
+    plt.figure()
+    plt.axis("off")
+    plt.imshow(tensor_to_image(img))
+    plt.savefig(args.output)
