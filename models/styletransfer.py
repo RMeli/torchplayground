@@ -1,14 +1,16 @@
 """
 Implementation of style transfer using PyTorch
 
+Notes
+-----
 Sources:
-    Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
-    Image Style Transfer Using Convolutional Neural Networks
-    https://arxiv.org/abs/1508.06576
+    [1] Leon A. Gatys, Alexander S. Ecker, Matthias Bethge
+    [1] Image Style Transfer Using Convolutional Neural Networks
+    [1] https://arxiv.org/abs/1508.06576
     
-    Intro to Deep Learning with Pytorch
-    Udacity Course
-    https://www.udacity.com/course/deep-learning-pytorch--ud188
+    [2] Intro to Deep Learning with Pytorch
+    [2] Udacity Course
+    [2] https://www.udacity.com/course/deep-learning-pytorch--ud188
 """
 
 import torch
@@ -46,6 +48,10 @@ class StyleTransfer:
         Notes
         -----
         Using a GPU us highly recommended, since the code is very slow on a CPU.
+
+        One instance of this class corresponds to one style transfer between the style
+        image and the content image (the content is used as target). The transfer can be
+        performed multiple times with different parameters using the function `run()`.
         """
         self.content = content
         self.style = style
