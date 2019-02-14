@@ -277,7 +277,7 @@ class StyleTransfer:
         # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
         optimizer = optim.Adam([target], lr=lr)
 
-        for i in range(steps):
+        for _ in range(steps):
 
             # Get target features
             # This call performs a forward propagation of the target image
