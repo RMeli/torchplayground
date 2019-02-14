@@ -459,11 +459,7 @@ if __name__ == "__main__":
 
         # Un-normalize
         img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
-
-        # Convert to RGB
-        #img = np.array(img * 255, dtype=np.uint8)
-        #img.clip(0, 255)    
-
+        
         # Clip for plt.imgshow() (to avoid warning)
         img = img.clip(0, 1)
 
