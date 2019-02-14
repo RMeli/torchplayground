@@ -337,14 +337,56 @@ if __name__ == "__main__":
             description="Neural Style Transfer using PyTorch"
         )
 
-        parser.add_argument("--style", "-s", type=str, required=True)
-        parser.add_argument("--content", "-c", type=str, required=True)
-        parser.add_argument("--output", "-o", type=str, required=True)
-        parser.add_argument("--nsteps", "-n", type=int, required=True)
-        parser.add_argument("--alpha", "-a", type=float, default=1)
-        parser.add_argument("--beta", "-b", type=float, default=1e6)
-        parser.add_argument("--weights", "-w", type=float, nargs=5, default=[0.2] * 5)
-        parser.add_argument("--lr", "-l", type=float, default=0.002)
+        parser.add_argument(
+            "--style",
+            "-s",
+            type=str,
+            required=True,
+            help="Style image",
+            metavar="STYLE_IMAGE",
+        )
+        parser.add_argument(
+            "--content",
+            "-c",
+            type=str,
+            required=True,
+            help="Content image",
+            metavar="CONTENT_IMAGE",
+        )
+        parser.add_argument(
+            "--output",
+            "-o",
+            type=str,
+            required=True,
+            help="Output image",
+            metavar="OUTPUT_IMAGE",
+        )
+        parser.add_argument(
+            "--nsteps",
+            "-n",
+            type=int,
+            required=True,
+            help="Number of steps",
+            metavar="STEPS",
+        )
+        parser.add_argument(
+            "--alpha", "-a", type=float, default=1, help="Content loss weight (alpha)"
+        )
+        parser.add_argument(
+            "--beta", "-b", type=float, default=1e6, help="Style loss weight (beta)"
+        )
+        parser.add_argument(
+            "--weights",
+            "-w",
+            type=float,
+            nargs=5,
+            default=[0.2] * 5,
+            help="Style layers weights",
+            metavar="WEIGHT",
+        )
+        parser.add_argument(
+            "--lr", "-l", type=float, default=0.002, help="Learning rate"
+        )
 
         return parser.parse_args()
 
@@ -444,8 +486,6 @@ if __name__ == "__main__":
     )
 
     # Save output image
-    #output = Image.fromarray(tensor_to_image(img))
-    #output.save(args.output)
     plt.figure()
     plt.axis("off")
     plt.imshow(tensor_to_image(img))
