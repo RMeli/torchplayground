@@ -240,7 +240,7 @@ class StyleTransfer:
         self,
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
-        style_weight: float = 1e6,  # Style weight for total loss
+        style_weight: float = 1e3,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
         lr: float = 0.002,
     ) -> torch.tensor:
@@ -285,7 +285,7 @@ class StyleTransfer:
 
             # Compute content loss (conv4_2 is the content layer)
             # Equation 1 in Gatys et al. (2016)
-            content_loss = torch.mean(
+            content_loss = 0.5 * torch.sum(
                 (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
             )
 
@@ -307,7 +307,7 @@ class StyleTransfer:
                 # Equation 4 in Gatys et al. (2016)
                 _, d, h, w = target_feature.shape
                 layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
-                    d * h * w
+                    4 * d * h * w
                 )
 
                 # Update total style loss
