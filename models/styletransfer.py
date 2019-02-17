@@ -11,6 +11,9 @@ Sources:
     [2] Intro to Deep Learning with Pytorch
     [2] Udacity Course
     [2] https://www.udacity.com/course/deep-learning-pytorch--ud188
+
+    [3] PyTorch Documentation
+    [3] https://pytorch.org/docs/stable/index.html
 """
 
 import torch
@@ -18,7 +21,7 @@ import torch.optim as optim
 
 import torchvision
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterable
 
 
 class StyleTransfer:
@@ -35,8 +38,8 @@ class StyleTransfer:
         """
         Style transfer __init__
 
-        Inputs
-        ------
+        Parameters
+        ----------
         self : StyleTransfer
         content : torch.tensor
            Content image (and initial guess)
@@ -101,8 +104,8 @@ class StyleTransfer:
         Get selected features layers from VGG19 for a specific image passed
         through the network.
 
-        Inputs
-        ------
+        Parameters
+        ----------
         image : torch.tensor
             Current image, to be propagated through the network
         
@@ -201,8 +204,8 @@ class StyleTransfer:
         """
         Compute Gram matrix for a given tensor
 
-        Input
-        -----
+        Parameters
+        ----------
         tensor : torch.tensor
             Input tensor
         
@@ -236,19 +239,56 @@ class StyleTransfer:
         # Compute Gram matrix
         return torch.mm(tensor, tensor.t())
 
+    def _optimizer_factory(self, params : Iterable[torch.tensor], optimizer : str, lr : float) -> torch.optim.Optimizer:
+        """
+        Optimizer factory function
+
+        Parameters
+        ----------
+        params: Iterable[torch.tensor]
+            Parameters to be optimized
+        optimizer: str
+            Name of the optimizer (SGD, Adam, LBFGS)
+        lr : float
+            Learning rate
+
+        Return
+        ------
+        optimizer: torch.optim.Optimizer
+            Optimizer
+
+        Note
+        ----
+        LBFGS is quite slow and memory intensive. However it works best for style transfer,
+        according to Gatys et al. (2016).
+        """
+
+        optimizers = {
+            "sgd" : optim.SGD([params], lr = lr),
+            "adam" : optim.Adam([params], lr = lr),
+            "lbfgs" :  optim.LBFGS([params], lr = lr, history_size=50)
+        }
+
+        try:
+            return optimizers[optimizer.lower()]
+        except KeyError:
+            print("Unknown optimizer. Setting optimizer to LBFGS.")
+            return optimizers["lbfgs"]
+
     def run(
         self,
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
-        style_weight: float = 1e6,  # Style weight for total loss
+        style_weight: float = 1e3,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
-        lr: float = 0.002,
+        optimizer_name = "LBFGS", # LBFGS optimizer
+        lr: float = 1.0,
     ) -> torch.tensor:
         """
         Perform style transfer with the specified parameters
 
-        Input
-        -----
+        Parameters
+        ----------
         steps : int
             Total number of optimization (transfer) steps
         content_weight : float
@@ -257,8 +297,15 @@ class StyleTransfer:
             Style weight for total loss
         style_layer_weights : Dict[str, float]
             Style weight for VGG19 layers using in style transfer
+        optimizer_name : torch.optim.Optimizer
+            Name of the optimizer
         lr : float
-            Learning rate (for the optimizer)
+            Learning rate for the optimizer
+
+        Returns
+        -------
+        image : torch.tensor
+            Image after style transfer
         """
         # Create target image
         # The target is initialized as content (and iteratively modified to change the style)
@@ -274,54 +321,64 @@ class StyleTransfer:
         }
 
         # Set optimizer
-        # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
-        optimizer = optim.Adam([target], lr=lr)
+        optimizer = self._optimizer_factory(target, optimizer_name, lr)
 
         for _ in range(steps):
 
-            # Get target features
-            # This call performs a forward propagation of the target image
-            target_features = self._get_features(target)
+            def closure():
+                """
+                Closure for optimization
+                """
 
-            # Compute content loss (conv4_2 is the content layer)
-            # Equation 1 in Gatys et al. (2016)
-            content_loss = torch.mean(
-                (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
-            )
+                # Reset gradients
+                optimizer.zero_grad()
 
-            # Compute style loss
-            style_loss = 0
-            for layer in style_weights:
-                # Get target feature for current layer
-                target_feature = target_features[layer]
+                # Get target features
+                # This call performs a forward propagation of the target image
+                target_features = self._get_features(target)
 
-                # Compute Gram matrix for target
-                # Matrix G in Equation 4 of Gatys et al. (2016)
-                target_gram = self._gram_matrix(target_feature)
-
-                # Get Gram matrix for style (current layer)
-                # Matrix A in Equation 4 of Gatys et al. (2016)
-                style_gram = self.style_grams[layer]
-
-                # Compute the style loss for current layer
-                # Equation 4 in Gatys et al. (2016)
-                _, d, h, w = target_feature.shape
-                layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
-                    d * h * w
+                # Compute content loss (conv4_2 is the content layer)
+                # Equation 1 in Gatys et al. (2016)
+                content_loss = 0.5 * torch.sum(
+                    (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
                 )
 
-                # Update total style loss
-                # Equation 5 in Gatys et al. (2016)
-                style_loss += style_weights[layer] * layer_style_loss
+                # Compute style loss
+                style_loss = 0
+                for layer in style_weights:
+                    # Get target feature for current layer
+                    target_feature = target_features[layer]
 
-            # Total loss
-            # Equation 7 in Gatys et al. (2016)
-            loss = content_weight * content_loss + style_weight * style_loss
+                    # Compute Gram matrix for target
+                    # Matrix G in Equation 4 of Gatys et al. (2016)
+                    target_gram = self._gram_matrix(target_feature)
+
+                    # Get Gram matrix for style (current layer)
+                    # Matrix A in Equation 4 of Gatys et al. (2016)
+                    style_gram = self.style_grams[layer]
+
+                    # Compute the style loss for current layer
+                    # Equation 4 in Gatys et al. (2016)
+                    _, d, h, w = target_feature.shape
+                    layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
+                        4 * d * h * w
+                    )
+
+                    # Update total style loss
+                    # Equation 5 in Gatys et al. (2016)
+                    style_loss += style_weights[layer] * layer_style_loss
+
+                # Total loss
+                # Equation 7 in Gatys et al. (2016)
+                loss = content_weight * content_loss + style_weight * style_loss
+
+                # Backpropagation
+                loss.backward()
+
+                return loss
 
             # Update target
-            optimizer.zero_grad()
-            loss.backward()  # Backpropagation
-            optimizer.step()
+            optimizer.step(closure)
 
         return target.clone().detach()
 
@@ -391,6 +448,9 @@ if __name__ == "__main__":
             metavar="WEIGHT",
         )
         parser.add_argument(
+            "--optimizer", "-z", type=str, default="lbfgs", help="Optimizer"
+        )
+        parser.add_argument(
             "--lr", "-l", type=float, default=0.002, help="Learning rate"
         )
 
@@ -400,8 +460,8 @@ if __name__ == "__main__":
         """
         Transform image to torch.tensor (with normalisation)
 
-        Inputs
-        ------
+        Parameters
+        ----------
         img_path : str
             Path to image
         shape : Tuple[int]
@@ -436,8 +496,8 @@ if __name__ == "__main__":
         """
         Transform torch.tensor to RGB image
 
-        Inputs
-        ------
+        Parameters
+        ----------
         tensor : torch.tensor
             Image as torch.tensor
 
@@ -484,6 +544,7 @@ if __name__ == "__main__":
         content_weight=args.alpha,
         style_weight=args.beta,
         style_layers_weights=args.weights,
+        optimizer_name=args.optimizer,
         lr=args.lr,
     )
 
