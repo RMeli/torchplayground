@@ -21,7 +21,7 @@ import torch.optim as optim
 
 import torchvision
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterable
 
 
 class StyleTransfer:
@@ -38,8 +38,8 @@ class StyleTransfer:
         """
         Style transfer __init__
 
-        Inputs
-        ------
+        Parameters
+        ----------
         self : StyleTransfer
         content : torch.tensor
            Content image (and initial guess)
@@ -104,8 +104,8 @@ class StyleTransfer:
         Get selected features layers from VGG19 for a specific image passed
         through the network.
 
-        Inputs
-        ------
+        Parameters
+        ----------
         image : torch.tensor
             Current image, to be propagated through the network
         
@@ -204,8 +204,8 @@ class StyleTransfer:
         """
         Compute Gram matrix for a given tensor
 
-        Input
-        -----
+        Parameters
+        ----------
         tensor : torch.tensor
             Input tensor
         
@@ -239,19 +239,56 @@ class StyleTransfer:
         # Compute Gram matrix
         return torch.mm(tensor, tensor.t())
 
+    def _optimizer_factory(self, params : Iterable[torch.tensor], optimizer : str, lr : float) -> torch.optim.Optimizer:
+        """
+        Optimizer factory function
+
+        Parameters
+        ----------
+        params: Iterable[torch.tensor]
+            Parameters to be optimized
+        optimizer: str
+            Name of the optimizer (SGD, Adam, LBFGS)
+        lr : float
+            Learning rate
+
+        Return
+        ------
+        optimizer: torch.optim.Optimizer
+            Optimizer
+
+        Note
+        ----
+        LBFGS is quite slow and memory intensive. However it works best for style transfer,
+        according to Gatys et al. (2016).
+        """
+
+        optimizers = {
+            "sgd" : optim.SGD([params], lr = lr),
+            "adam" : optim.Adam([params], lr = lr),
+            "lbfgs" :  optim.LBFGS([params], lr = lr, history_size=50)
+        }
+
+        try:
+            return optimizers[optimizer.lower()]
+        except KeyError:
+            print("Unknown optimizer. Setting optimizer to LBFGS.")
+            return optimizers["lbfgs"]
+
     def run(
         self,
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
         style_weight: float = 1e3,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
+        optimizer_name = "LBFGS", # LBFGS optimizer
         lr: float = 1.0,
     ) -> torch.tensor:
         """
         Perform style transfer with the specified parameters
 
-        Input
-        -----
+        Parameters
+        ----------
         steps : int
             Total number of optimization (transfer) steps
         content_weight : float
@@ -260,8 +297,15 @@ class StyleTransfer:
             Style weight for total loss
         style_layer_weights : Dict[str, float]
             Style weight for VGG19 layers using in style transfer
+        optimizer_name : torch.optim.Optimizer
+            Name of the optimizer
         lr : float
-            Learning rate (for the optimizer)
+            Learning rate for the optimizer
+
+        Returns
+        -------
+        image : torch.tensor
+            Image after style transfer
         """
         # Create target image
         # The target is initialized as content (and iteratively modified to change the style)
@@ -277,11 +321,9 @@ class StyleTransfer:
         }
 
         # Set optimizer
-        # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
-        optimizer = optim.LBFGS([target], lr=lr)
+        optimizer = self._optimizer_factory(target, optimizer_name, lr)
 
         for _ in range(steps):
-
 
             def closure():
                 """
@@ -406,6 +448,9 @@ if __name__ == "__main__":
             metavar="WEIGHT",
         )
         parser.add_argument(
+            "--optimizer", "-z", type=str, default="lbfgs", help="Optimizer"
+        )
+        parser.add_argument(
             "--lr", "-l", type=float, default=0.002, help="Learning rate"
         )
 
@@ -415,8 +460,8 @@ if __name__ == "__main__":
         """
         Transform image to torch.tensor (with normalisation)
 
-        Inputs
-        ------
+        Parameters
+        ----------
         img_path : str
             Path to image
         shape : Tuple[int]
@@ -451,8 +496,8 @@ if __name__ == "__main__":
         """
         Transform torch.tensor to RGB image
 
-        Inputs
-        ------
+        Parameters
+        ----------
         tensor : torch.tensor
             Image as torch.tensor
 
@@ -499,6 +544,7 @@ if __name__ == "__main__":
         content_weight=args.alpha,
         style_weight=args.beta,
         style_layers_weights=args.weights,
+        optimizer_name=args.optimizer,
         lr=args.lr,
     )
 
