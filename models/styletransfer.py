@@ -11,6 +11,9 @@ Sources:
     [2] Intro to Deep Learning with Pytorch
     [2] Udacity Course
     [2] https://www.udacity.com/course/deep-learning-pytorch--ud188
+
+    [3] PyTorch Documentation
+    [3] https://pytorch.org/docs/stable/index.html
 """
 
 import torch
@@ -242,7 +245,7 @@ class StyleTransfer:
         content_weight: float = 1,  # Conetnt weight for total loss
         style_weight: float = 1e3,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
-        lr: float = 0.002,
+        lr: float = 1.0,
     ) -> torch.tensor:
         """
         Perform style transfer with the specified parameters
@@ -275,53 +278,65 @@ class StyleTransfer:
 
         # Set optimizer
         # TODO: Use L-BFGS which work best for image synthesis, according to Gatys et al. (2016)
-        optimizer = optim.Adam([target], lr=lr)
+        optimizer = optim.LBFGS([target], lr=lr)
 
         for _ in range(steps):
 
-            # Get target features
-            # This call performs a forward propagation of the target image
-            target_features = self._get_features(target)
 
-            # Compute content loss (conv4_2 is the content layer)
-            # Equation 1 in Gatys et al. (2016)
-            content_loss = 0.5 * torch.sum(
-                (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
-            )
+            def closure():
+                """
+                Closure for optimization
+                """
 
-            # Compute style loss
-            style_loss = 0
-            for layer in style_weights:
-                # Get target feature for current layer
-                target_feature = target_features[layer]
+                # Reset gradients
+                optimizer.zero_grad()
 
-                # Compute Gram matrix for target
-                # Matrix G in Equation 4 of Gatys et al. (2016)
-                target_gram = self._gram_matrix(target_feature)
+                # Get target features
+                # This call performs a forward propagation of the target image
+                target_features = self._get_features(target)
 
-                # Get Gram matrix for style (current layer)
-                # Matrix A in Equation 4 of Gatys et al. (2016)
-                style_gram = self.style_grams[layer]
-
-                # Compute the style loss for current layer
-                # Equation 4 in Gatys et al. (2016)
-                _, d, h, w = target_feature.shape
-                layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
-                    4 * d * h * w
+                # Compute content loss (conv4_2 is the content layer)
+                # Equation 1 in Gatys et al. (2016)
+                content_loss = 0.5 * torch.sum(
+                    (target_features["conv4_2"] - self.content_features["conv4_2"]) ** 2
                 )
 
-                # Update total style loss
-                # Equation 5 in Gatys et al. (2016)
-                style_loss += style_weights[layer] * layer_style_loss
+                # Compute style loss
+                style_loss = 0
+                for layer in style_weights:
+                    # Get target feature for current layer
+                    target_feature = target_features[layer]
 
-            # Total loss
-            # Equation 7 in Gatys et al. (2016)
-            loss = content_weight * content_loss + style_weight * style_loss
+                    # Compute Gram matrix for target
+                    # Matrix G in Equation 4 of Gatys et al. (2016)
+                    target_gram = self._gram_matrix(target_feature)
+
+                    # Get Gram matrix for style (current layer)
+                    # Matrix A in Equation 4 of Gatys et al. (2016)
+                    style_gram = self.style_grams[layer]
+
+                    # Compute the style loss for current layer
+                    # Equation 4 in Gatys et al. (2016)
+                    _, d, h, w = target_feature.shape
+                    layer_style_loss = torch.mean((target_gram - style_gram) ** 2) / (
+                        4 * d * h * w
+                    )
+
+                    # Update total style loss
+                    # Equation 5 in Gatys et al. (2016)
+                    style_loss += style_weights[layer] * layer_style_loss
+
+                # Total loss
+                # Equation 7 in Gatys et al. (2016)
+                loss = content_weight * content_loss + style_weight * style_loss
+
+                # Backpropagation
+                loss.backward()
+
+                return loss
 
             # Update target
-            optimizer.zero_grad()
-            loss.backward()  # Backpropagation
-            optimizer.step()
+            optimizer.step(closure)
 
         return target.clone().detach()
 
