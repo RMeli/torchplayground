@@ -239,7 +239,9 @@ class StyleTransfer:
         # Compute Gram matrix
         return torch.mm(tensor, tensor.t())
 
-    def _optimizer_factory(self, params : Iterable[torch.tensor], optimizer : str, lr : float) -> torch.optim.Optimizer:
+    def _optimizer_factory(
+        self, params: Iterable[torch.tensor], optimizer: str, lr: float
+    ) -> torch.optim.Optimizer:
         """
         Optimizer factory function
 
@@ -264,9 +266,9 @@ class StyleTransfer:
         """
 
         optimizers = {
-            "sgd" : optim.SGD([params], lr = lr),
-            "adam" : optim.Adam([params], lr = lr),
-            "lbfgs" :  optim.LBFGS([params], lr = lr, history_size=50)
+            "sgd": optim.SGD([params], lr=lr),
+            "adam": optim.Adam([params], lr=lr),
+            "lbfgs": optim.LBFGS([params], lr=lr, history_size=50),
         }
 
         try:
@@ -281,7 +283,7 @@ class StyleTransfer:
         content_weight: float = 1,  # Conetnt weight for total loss
         style_weight: float = 1e3,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
-        optimizer_name = "LBFGS", # LBFGS optimizer
+        optimizer_name="LBFGS",  # LBFGS optimizer
         lr: float = 1.0,
     ) -> torch.tensor:
         """
@@ -519,7 +521,7 @@ if __name__ == "__main__":
 
         # Un-normalize
         img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
-        
+
         # Clip for plt.imgshow() (to avoid warning)
         img = img.clip(0, 1)
 
