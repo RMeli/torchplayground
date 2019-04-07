@@ -5,13 +5,13 @@ import numpy as np
 from PIL import Image
 
 
-def load_image(img_path, shape=None):
+def load_image(img_path, shape=None, norm=(0.5, 0.5, 0.5), std=(0.2,0.2,0.2)):
 
     # Load image in RGB format
     img = Image.open(img_path).convert("RGB")
 
     # Image transformations
-    normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.2, 0.2, 0.2))
+    normalize = transforms.Normalize(norm, std)
 
     if shape is None:
         transform = transforms.Compose([transforms.ToTensor(), normalize])
@@ -27,7 +27,7 @@ def load_image(img_path, shape=None):
     return img
 
 
-def tensor_to_image(tensor):
+def tensor_to_image(tensorn, norm=(0.5, 0.5, 0.5), std=(0.2,0.2, 0.2)):
 
     # Move tensor to CPU
     img = tensor.to("cpu")
@@ -36,7 +36,7 @@ def tensor_to_image(tensor):
     img = img.numpy().squeeze().transpose(1, 2, 0)
 
     # Un-normalize
-    img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
+    img = img * np.array(std) + np.array(norm)
 
     # Clip for plt.imgshow() (to avoid warning)
     img = img.clip(0, 1)

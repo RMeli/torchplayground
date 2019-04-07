@@ -2,9 +2,17 @@
 
 Playground for machine learning and deep learning using [PyTorch](https://pytorch.org/)
 
-## Structure
+## Notebooks
 
-All the Jupyter Notebooks of are in `playground`.
+All the Jupyter Notebooks of are in `playground`
+
+| Notebook | Model | Dataset | 
+| -------- | ----- | ------- |
+| mnist | Multi-Layer Perceptron | MNIST |
+| cfar10 | Simple CNN | CFAR10 |
+| styletransfer | VGG19 | - |
+
+
 
 ## Sources
 
