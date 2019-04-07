@@ -2,6 +2,10 @@
 
 Playground for machine learning and deep learning using [PyTorch](https://pytorch.org/)
 
+## Structure
+
+All the Jupyter Notebooks of are in `playground`.
+
 ## Sources
 
 ### Documentation
@@ -12,6 +16,6 @@ Playground for machine learning and deep learning using [PyTorch](https://pytorc
 
 * [Intro to Deep Learning with PyTorch](https://www.udacity.com/course/deep-learning-pytorch--ud188)
 
-### AScientific Papers
+### Scientific Papers
 
 * [Image Style Transfer Using Convolutional Neural Networks](https://arxiv.org/abs/1508.06576)
