@@ -97,7 +97,9 @@ class StyleTransfer:
             p.requires_grad_(False)
 
         # Move the model to the correct device
-        return vgg.to(self.device)
+        vgg = vgg.to(self.device)
+        
+        return vgg
 
     def _get_features(self, image: torch.tensor) -> Dict[str, torch.tensor]:
         """
@@ -237,7 +239,9 @@ class StyleTransfer:
         tensor = tensor.view(d, h * w)
 
         # Compute Gram matrix
-        return torch.mm(tensor, tensor.t())
+        G = torch.mm(tensor, tensor.t())
+        
+        return G
 
     def _optimizer_factory(
         self, params: Iterable[torch.tensor], optimizer: str, lr: float
@@ -281,10 +285,10 @@ class StyleTransfer:
         self,
         steps: int,
         content_weight: float = 1,  # Conetnt weight for total loss
-        style_weight: float = 1e3,  # Style weight for total loss
+        style_weight: float = 1e6,  # Style weight for total loss
         style_layers_weights: List[float] = [0.2] * 5,  # Weights for style layers
-        optimizer_name="LBFGS",  # LBFGS optimizer
-        lr: float = 1.0,
+        optimizer_name="adam",  # Adam optimizer
+        lr: float = 0.002,
     ) -> torch.tensor:
         """
         Perform style transfer with the specified parameters
@@ -332,9 +336,6 @@ class StyleTransfer:
                 Closure for optimization
                 """
 
-                # Reset gradients
-                optimizer.zero_grad()
-
                 # Get target features
                 # This call performs a forward propagation of the target image
                 target_features = self._get_features(target)
@@ -348,6 +349,7 @@ class StyleTransfer:
                 # Compute style loss
                 style_loss = 0
                 for layer in style_weights:
+                    
                     # Get target feature for current layer
                     target_feature = target_features[layer]
 
@@ -374,6 +376,9 @@ class StyleTransfer:
                 # Equation 7 in Gatys et al. (2016)
                 loss = content_weight * content_loss + style_weight * style_loss
 
+                # Reset gradients
+                optimizer.zero_grad()
+                
                 # Backpropagation
                 loss.backward()
 
@@ -450,7 +455,7 @@ if __name__ == "__main__":
             metavar="WEIGHT",
         )
         parser.add_argument(
-            "--optimizer", "-z", type=str, default="lbfgs", help="Optimizer"
+            "--optimizer", "-z", type=str, default="adam", help="Optimizer"
         )
         parser.add_argument(
             "--lr", "-l", type=float, default=0.002, help="Learning rate"
@@ -479,7 +484,7 @@ if __name__ == "__main__":
         img = Image.open(img_path).convert("RGB")
 
         # Image transformations
-        normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.2, 0.2, 0.2))
+        normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 
         if shape is None:
             transform = transforms.Compose([transforms.ToTensor(), normalize])
@@ -514,13 +519,13 @@ if __name__ == "__main__":
         """
 
         # Move tensor to CPU
-        img = tensor.to("cpu")
+        img = tensor.to("cpu").clone().detach()
 
         # Transform image into numpy array
         img = img.numpy().squeeze().transpose(1, 2, 0)
 
         # Un-normalize
-        img = img * np.array((0.2, 0.2, 0.2)) + np.array((0.5, 0.5, 0.5))
+        img = img * np.array((0.229, 0.224, 0.225)) + np.array((0.485, 0.456, 0.406))
 
         # Clip for plt.imgshow() (to avoid warning)
         img = img.clip(0, 1)
